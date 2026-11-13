@@ -1,0 +1,29 @@
+{
+  "outputDirectory": "public",
+  "regions": [
+    "fra1"
+  ],
+  "rewrites": [
+    {
+      "source": "/cancel",
+      "destination": "/api/cancel"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron",
+      "schedule": "0 8 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    }
+  ]
+}
