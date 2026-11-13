@@ -13,6 +13,6 @@ module.exports = async (req, res) => {
     });
   } catch (e) {
     console.error(e.message);
-    c.json(res, 500, { error: "server" }, { "Cache-Control": "no-store" });
+    c.json(res, 500, c.errorInfo(e), { "Cache-Control": "no-store" });
   }
 };

@@ -55,6 +55,6 @@ module.exports = async (req, res) => {
     c.json(res, 200, { ok: true, mode: hourly ? "hourly" : "daily", due: due.length, sent });
   } catch (e) {
     console.error(e.message);
-    c.json(res, 502, { error: "crm" });
+    c.json(res, 502, c.errorInfo(e));
   }
 };

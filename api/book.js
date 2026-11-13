@@ -22,6 +22,6 @@ module.exports = async (req, res) => {
     c.json(res, 200, { ok: true, date: b.date, time: b.time, title: b.title });
   } catch (e) {
     console.error(e.message);
-    c.json(res, 502, { error: "crm" });
+    c.json(res, 502, c.errorInfo(e));
   }
 };
