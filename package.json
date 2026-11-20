@@ -1,5 +1,9 @@
 {
   "name": "sanart-booking",
   "private": true,
-  "description": "Trial lesson booking page for SanArt, schedule from МойКласс"
+  "description": "Запись на пробные уроки SanArt: расписание и запись через МойКласс, Vercel",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test"
+  }
 }

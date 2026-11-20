@@ -1,18 +1,13 @@
-// GET /api/schedule — free trial slots for the next BOOKING_DAYS days.
-// Vercel's CDN keeps the answer 30 s and serves the old copy while refreshing,
-// so visitors almost never wait for МойКласс. ?fresh=<anything> skips the cache.
-const c = require("../lib/core");
+// GET /api/schedule — свободное время на неделю (или первую неделю со свободным временем).
+// CDN Vercel держит ответ 30 с и отдаёт старую копию, пока обновляет: посетители почти не ждут МойКласс.
+// ?fresh=<что угодно> — мимо кэша (страница так перезагружает расписание после «время заняли»).
+const booking = require("../lib/booking");
+const http = require("../lib/http");
 
 module.exports = async (req, res) => {
+  const fresh = http.query(req).has("fresh");
   try {
-    c.checkConfig();
-    const fresh = req.url.includes("fresh=");
-    const data = await c.loadSchedule();
-    c.json(res, 200, data, {
-      "Cache-Control": fresh ? "no-store" : "public, s-maxage=30, stale-while-revalidate=600",
-    });
-  } catch (e) {
-    console.error(e.message);
-    c.json(res, 500, c.errorInfo(e), { "Cache-Control": "no-store" });
-  }
+    http.json(res, 200, await booking.schedule(),
+      { "Cache-Control": fresh ? "no-store" : "public, s-maxage=30, stale-while-revalidate=600" });
+  } catch (e) { http.fail(res, e); }
 };

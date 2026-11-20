@@ -1,27 +1,20 @@
-// POST /api/book {name, phone, lessonId, ig} — books a trial lesson in МойКласс.
-const c = require("../lib/core");
+// POST /api/book {date, time, classId, name, phone, ig, website} — запись на пробный урок.
+// Ответ: {ok, date, time, title} или {error: bad|late|taken|used|already|config|crm|crm-auth|server}.
+const booking = require("../lib/booking");
+const notify = require("../lib/notify");
+const http = require("../lib/http");
 
 module.exports = async (req, res) => {
-  if (req.method !== "POST") return c.json(res, 405, { error: "method" });
+  if (req.method !== "POST") return http.json(res, 405, { error: "method" });
   try {
-    c.checkConfig();
-    const body = await c.readBody(req);
-    if (body.website) return c.json(res, 200, { ok: true }); // honeypot
-    const name = String(body.name || "").trim().slice(0, 100), phone = body.phone;
-    const lessonId = parseInt(body.lessonId, 10), ig = String(body.ig || "").slice(0, 100);
-    if (!name || !c.validPhone(phone) || !lessonId) return c.json(res, 400, { error: "bad data" });
-
-    const r = await c.book({ name, phone, lessonId, ig });
-    if (r.code !== 200) return c.json(res, r.code, { error: r.error });
-
+    const r = await booking.book(await http.readBody(req));
+    if (r.spam) return http.json(res, 200, { ok: true });
+    if (r.error) return http.json(res, r.code, { error: r.error, ...(r.field ? { field: r.field } : {}) });
     const b = r.booking;
     await Promise.all([
-      c.safe(c.sendWhatsApp(phone, `${name}, вы записаны на пробный урок в SanArt: ${c.lessonText(b)}. Ждём вас!\n${c.cancelRule(b, req)}`)),
-      c.notifyAdmins(`Новая запись на пробный урок:\n${name}, ${phone}\n${c.lessonText(b)}${ig ? "\nИз Instagram: " + ig : ""}`),
+      notify.safeSend(b.phone, notify.texts.bookedClient(b, http.baseUrl(req))),
+      notify.notifyAdmins(notify.texts.bookedAdmin(b)),
     ]);
-    c.json(res, 200, { ok: true, date: b.date, time: b.time, title: b.title });
-  } catch (e) {
-    console.error(e.message);
-    c.json(res, 502, c.errorInfo(e));
-  }
+    http.json(res, 200, { ok: true, date: b.date, time: b.time, title: b.title });
+  } catch (e) { http.fail(res, e); }
 };
