@@ -81,7 +81,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const day = d => new Date(d + "T12:00:00");
 
 let data = null;              // ответ /api/schedule
-let date = "", time = "", classId = 0, booked = false, leadSent = false;
+let date = "", time = "", classId = 0, booked = false, booking = false, leadSent = false;
 
 function chip(html, pressed, disabled, onclick){
   const b = document.createElement("button");
@@ -158,7 +158,7 @@ function cleanPhone(v){
 // ввёл имя и телефон, но ушёл, не записавшись, — админ получит контакт, чтобы перезвонить (один раз)
 function sendLead(){
   const phone = cleanPhone($("phone").value), name = $("name").value.trim();
-  if (booked || leadSent || !phone || !name) return;
+  if (booked || booking || leadSent || !phone || !name) return; // во время записи — не «ушёл»
   leadSent = true;
   const body = JSON.stringify({ name, phone, ig });
   const sent = navigator.sendBeacon && navigator.sendBeacon("/api/lead", new Blob([body], { type: "application/json" }));
@@ -181,7 +181,7 @@ $("go").onclick = async () => {
   if (!classId) return err.textContent = "Выберите инструмент";
   if (!name) return err.textContent = "Введите имя";
   if (!phone) return err.textContent = "Введите номер в формате +7 7XX XXX XX XX";
-  const go = $("go"); go.disabled = true; go.textContent = "Записываем…";
+  const go = $("go"); go.disabled = true; go.textContent = "Записываем…"; booking = true;
   let code = "";
   try {
     const r = await fetch("/api/book", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -192,6 +192,7 @@ $("go").onclick = async () => {
     $("doneText").textContent = name + ", ждём вас " + d.date.split("-").reverse().join(".") + " в " + d.time
       + (d.title ? " (" + d.title + ")" : "") + ". Подтверждение придёт в WhatsApp.";
   } catch (e) {
+    booking = false;
     err.textContent = MESSAGES[code] || "Не получилось записать. Попробуйте ещё раз.";
     go.disabled = false; go.textContent = "Записаться";
     if (code === "taken" || code === "late") { time = ""; classId = 0; loadSchedule(true); }

@@ -6,8 +6,10 @@ const http = require("../lib/http");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") return http.json(res, 405, { error: "method" });
+  const t0 = Date.now();
   try {
     const r = await booking.book(await http.readBody(req));
+    console.log(`book ${r.error || (r.spam ? "spam" : "ok")} ${Date.now() - t0} мс`);
     if (r.spam) return http.json(res, 200, { ok: true });
     if (r.error) return http.json(res, r.code, { error: r.error, ...(r.field ? { field: r.field } : {}) });
     const b = r.booking;
@@ -15,6 +17,7 @@ module.exports = async (req, res) => {
       notify.safeSend(b.phone, notify.texts.bookedClient(b, http.baseUrl(req))),
       notify.notifyAdmins(notify.texts.bookedAdmin(b)),
     ]);
+    console.log(`book: сообщения отправлены, всего ${Date.now() - t0} мс`);
     http.json(res, 200, { ok: true, date: b.date, time: b.time, title: b.title });
   } catch (e) { http.fail(res, e); }
 };

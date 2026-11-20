@@ -350,3 +350,22 @@ test("book с преподавателями: гонка за одного пр�
   assert.equal(m.db.lessons.length, 1);
   assert.deepEqual(lessonsReq().map(x => x.body.roomId).sort(), [5, 6]); // кабинеты разные — конфликт только по преподавателю
 });
+
+test("book: сбой МойКласс после создания занятия не срывает запись — сообщения уходят", async () => {
+  m.db.failLessonsAfterCreate = true;
+  const errors = [], orig = console.error; console.error = (...a) => errors.push(a.join(" "));
+  try {
+    const r = await post(book, person());
+    assert.equal(r.status, 200, r.body);
+    assert.equal(m.db.lessons.length, 1);
+    assert.equal(m.db.whatsapp.length, 3); // клиент + 2 админа
+    assert.ok(errors.some(e => /проверка гонки пропущена/.test(e)));
+  } finally { console.error = orig; }
+});
+
+test("book: без recordId сообщение клиенту без ссылки отмены", () => {
+  const notify = require("../lib/notify");
+  const msg = notify.texts.bookedClient({ name: "Аня", title: "Вокал", date: D, time: "12:00", recordId: null }, "https://x");
+  assert.doesNotMatch(msg, /cancel\?t=/);
+  assert.match(msg, /напишите нам/);
+});

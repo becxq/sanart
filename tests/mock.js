@@ -101,6 +101,8 @@ function start() {
       if (req.method === "DELETE") { l.records = l.records.filter(r => r.id !== +m[1]); return send(200, {}); }
     }
 
+    if (req.method === "GET" && p === "/lessons" && db.failLessonsAfterCreate && db.lessons.some(l => l.topic === "Пробный урок"))
+      return send(500, { code: "InternalError" }); // сбой МойКласс после создания занятия
     if (req.method === "GET" && p === "/lessons") {
       let l = db.lessons;
       const dates = q.getAll("date");

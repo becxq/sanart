@@ -127,3 +127,8 @@ test("config: неизвестный и уволенный преподават�
   setEnv(m, { MOYKLASS_TRIAL_TEACHERS: "21" });
   assert.throws(() => config.check(), /не указаны преподаватели/);
 });
+
+test("холодный старт: параллельные запросы получают один общий токен", async () => {
+  await Promise.all([mk.classes(), mk.filials(), mk.rooms(), mk.joinStatuses()]);
+  assert.equal(m.db.tokensIssued, 1);
+});
