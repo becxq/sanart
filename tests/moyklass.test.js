@@ -71,9 +71,9 @@ test("trialSetup: группы, названия, кабинеты; без ка�
   const s = await mk.trialSetup();
   assert.equal(s.filialId, 1);
   assert.deepEqual(s.groups, [
-    { classId: 20, name: "Вокал", roomIds: [5] },
-    { classId: 21, name: "Гитара", roomIds: [6, 7] },
-    { classId: 22, name: "Фортепиано", roomIds: [5, 6, 7] }]);
+    { classId: 20, name: "Вокал", roomIds: [5], teacherIds: [] },
+    { classId: 21, name: "Гитара", roomIds: [6, 7], teacherIds: [] },
+    { classId: 22, name: "Фортепиано", roomIds: [5, 6, 7], teacherIds: [] }]);
 });
 
 const configError = async (fn, re) => {
@@ -111,4 +111,19 @@ test("статус записи в группу: из переменной ил�
   m.db.joinStatuses = [{ id: 2, name: "Учится" }];
   mk._reset();
   await configError(() => mk.trialJoinStatusId(), /MOYKLASS_JOIN_STATUS_ID/);
+});
+
+test("trialSetup: преподаватели по группам из MOYKLASS_TRIAL_TEACHERS", async () => {
+  setEnv(m, { MOYKLASS_TRIAL_TEACHERS: "21:501,502;20:503;22:503" });
+  const s = await mk.trialSetup();
+  assert.deepEqual(s.groups.map(g => [g.classId, g.teacherIds]), [[20, [503]], [21, [501, 502]], [22, [503]]]);
+});
+
+test("config: неизвестный и уволенный преподаватель, группа не из TRIAL_GROUPS, группа без преподавателей", async () => {
+  setEnv(m, { MOYKLASS_TRIAL_TEACHERS: "21:501,999;20:504;777:501" });
+  const info = await configError(() => mk.trialSetup(), /преподавателя 999/);
+  assert.match(info.problems.join("\n"), /504 «Уволен».*не работает/);
+  assert.match(info.problems.join("\n"), /группы 777 нет в MOYKLASS_TRIAL_GROUPS/);
+  setEnv(m, { MOYKLASS_TRIAL_TEACHERS: "21" });
+  assert.throws(() => config.check(), /не указаны преподаватели/);
 });

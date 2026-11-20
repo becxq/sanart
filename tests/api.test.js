@@ -176,8 +176,8 @@ test("book: МойКласс требует преподавателя → по�
     assert.equal(r.status, 502);
     assert.equal(r.json.error, "crm");
     assert.equal(r.json.status, 400);
-    assert.match(r.json.detail, /требует преподавателя/);
-    assert.ok(errors.some(e => /требует преподавателя/.test(e)));
+    assert.match(r.json.detail, /не принял преподавателя/);
+    assert.ok(errors.some(e => /не принял преподавателя/.test(e)));
   } finally { console.error = orig; }
 });
 
@@ -320,4 +320,33 @@ test("lead: sendBeacon присылает строку; неверные дан�
   assert.equal((await call(lead, { url: "/api/lead" })).status, 405);
   assert.equal((await post(lead, { name: "Боря", phone: "+77013334455", website: "x" })).json.ok, true);
   assert.equal(m.db.whatsapp.length, 2); // honeypot не отправил
+});
+
+// ---- преподаватели (MOYKLASS_TRIAL_TEACHERS) ----
+const TEACHERS = { MOYKLASS_TRIAL_TEACHERS: "21:501,502;20:503;22:503" };
+
+test("book с преподавателями: занятие с teacherIds первого свободного преподавателя", async () => {
+  setEnv(m, TEACHERS);
+  m.addLesson({ date: D, beginTime: "11:30", endTime: "12:30", roomId: 99, classId: 777, teacherIds: [501] }); // 501 занят
+  const r = await post(book, person("+77011112233", { classId: 21 }));
+  assert.equal(r.status, 200, r.body);
+  assert.deepEqual([lessonsReq()[0].body.teacherIds, lessonsReq()[0].body.roomId], [[502], 6]);
+});
+
+test("book с преподавателями: вокал занял преподавателя → фортепиано в это время недоступно (taken)", async () => {
+  setEnv(m, TEACHERS);
+  assert.equal((await post(book, person("+77011112233", { classId: 20 }))).status, 200);
+  const s = (await call(schedule, { url: "/api/schedule?fresh=1" })).json.days[D].find(x => x.time === "12:00");
+  assert.deepEqual(s.classIds, [21]);
+  const r = await post(book, person("+77022223344", { classId: 22 }));
+  assert.deepEqual([r.status, r.json.error], [409, "taken"]);
+});
+
+test("book с преподавателями: гонка за одного преподавателя в разных кабинетах → одна taken", async () => {
+  setEnv(m, { ...TEACHERS, MOYKLASS_TRIAL_GROUPS: "20:5;21:6,7;22:6" }); // вокал в каб. 5, фортепиано в каб. 6
+  m.db.createDelayMs = 30;
+  const [a, b] = await Promise.all([post(book, person("+77011112233", { classId: 20 })), post(book, person("+77022223344", { classId: 22 }))]);
+  assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+  assert.equal(m.db.lessons.length, 1);
+  assert.deepEqual(lessonsReq().map(x => x.body.roomId).sort(), [5, 6]); // кабинеты разные — конфликт только по преподавателю
 });

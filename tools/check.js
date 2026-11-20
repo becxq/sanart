@@ -12,10 +12,11 @@ const time = require("../lib/time");
     .filter(u => String(u.phone || "").replace(/\D/g, "") === digits);
   if (!users.length) { console.log(`Ученик с номером ${phone} в МойКласс не найден.`); return; }
 
-  const [classes, rooms, statuses] = await Promise.all([
+  const [classes, rooms, statuses, teachers] = await Promise.all([
     mk.classes().then(l => new Map(l.map(x => [x.id, x.name]))),
     mk.rooms().then(l => new Map(l.map(x => [x.id, x.name]))).catch(() => new Map()),
     mk.joinStatuses().then(l => new Map(l.map(x => [x.id, x.name]))).catch(() => new Map()),
+    mk.managers().then(l => new Map(l.map(x => [x.id, x.name]))).catch(() => new Map()),
   ]);
   const cls = id => `${classes.get(id) || "?"} (группа ${id})`;
 
@@ -34,7 +35,7 @@ const time = require("../lib/time");
       const l = lessons.get(r.lessonId);
       const when = l ? `${time.ruDate(l.date)} ${time.fromMin(time.toMin(l.beginTime))}–${time.fromMin(time.toMin(l.endTime))}, ${cls(l.classId)}, `
         + `кабинет ${l.roomId ? `${rooms.get(l.roomId) || "?"} (${l.roomId})` : "не указан"}, учеников: ${(l.records || []).length}, `
-        + `преподаватели: ${(l.teacherIds || []).join(",") || "нет"}` : "занятие не найдено";
+        + `преподаватели: ${(l.teacherIds || []).map(id => `${teachers.get(id) || "?"} (${id})`).join(", ") || "нет"}` : "занятие не найдено";
       console.log(`  • запись ${r.id}, занятие ${r.lessonId}: ${when}; test: ${!!r.test}, skip: ${!!r.skip}`);
     }
     if (!recs.length) console.log("  (нет)");

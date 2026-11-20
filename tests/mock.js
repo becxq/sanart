@@ -19,6 +19,12 @@ function freshDb() {
       { id: 21, filialId: 1, status: "opened", name: "Гитара" },
       { id: 22, filialId: 1, status: "opened", name: "Фортепиано" },
     ],
+    managers: [
+      { id: 501, name: "Гитарист-1", enabled: true, isWork: true },
+      { id: 502, name: "Гитарист-2", enabled: true, isWork: true },
+      { id: 503, name: "Вокал и фортепиано", enabled: true, isWork: true },
+      { id: 504, name: "Уволен", enabled: true, isWork: false },
+    ],
     joinStatuses: [{ id: 2, name: "Учится" }, { id: 41075, name: "Записан" }, { id: 77, name: "Пробное" }],
     advSources: [{ id: 3, name: "Сайт" }],
     users: [], joins: [], lessons: [],
@@ -61,6 +67,7 @@ function start() {
     if (req.method === "GET" && p === "/classes") return send(200, db.classes);
     if (req.method === "GET" && p === "/filials") return send(200, db.filials);
     if (req.method === "GET" && p === "/rooms") return send(200, db.rooms);
+    if (req.method === "GET" && p === "/managers") return send(200, db.managers);
     if (req.method === "GET" && p === "/joinStatuses") return send(200, db.joinStatuses);
     if (req.method === "GET" && p === "/advSources") return send(200, db.advSources);
 

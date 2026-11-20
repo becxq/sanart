@@ -27,8 +27,8 @@ test("последний старт 21:15, 21:30 нет", () => {
   const v = times(a.daySlots(a.busyIndex([]), [vocal], D, settings, NOW), 20);
   assert.equal(v[v.length - 1], "21:15");
   assert.ok(!v.includes("21:30"));
-  assert.equal(a.freeRoom(a.busyIndex([]), vocal, D, t.toMin("21:30"), settings), null);
-  assert.equal(a.freeRoom(a.busyIndex([]), vocal, D, t.toMin("09:45"), settings), null);
+  assert.equal(a.freePlace(a.busyIndex([]), vocal, D, t.toMin("21:30"), settings), null);
+  assert.equal(a.freePlace(a.busyIndex([]), vocal, D, t.toMin("09:45"), settings), null);
 });
 
 test("занятие без кабинета закрывает все кабинеты", () => {
@@ -41,12 +41,12 @@ test("занятие без кабинета закрывает все каби�
 
 test("инструмент с двумя кабинетами доступен, пока свободен хоть один", () => {
   let idx = a.busyIndex([lesson(6, "14:00", "15:00")]);
-  assert.equal(a.freeRoom(idx, guitar, D, t.toMin("14:00"), settings), 7);
+  assert.equal(a.freePlace(idx, guitar, D, t.toMin("14:00"), settings)?.roomId, 7);
   assert.ok(times(a.daySlots(idx, [guitar], D, settings, NOW), 21).includes("14:00"));
   idx = a.busyIndex([lesson(6, "14:00", "15:00"), lesson(7, "14:30", "15:30")]);
-  assert.equal(a.freeRoom(idx, guitar, D, t.toMin("14:00"), settings), null);
+  assert.equal(a.freePlace(idx, guitar, D, t.toMin("14:00"), settings), null);
   assert.ok(!times(a.daySlots(idx, [guitar], D, settings, NOW), 21).includes("14:00"));
-  assert.equal(a.freeRoom(idx, guitar, D, t.toMin("13:00"), settings), 6); // первый по порядку из настроек
+  assert.equal(a.freePlace(idx, guitar, D, t.toMin("13:00"), settings)?.roomId, 6); // первый по порядку из настроек
 });
 
 test("другие даты не мешают", () => {
@@ -87,4 +87,36 @@ test("findSchedule: нигде нет времени → ближайшая не
   assert.equal(r.from, today);
   assert.deepEqual(Object.keys(r.days), t.dateRange(today, 7));
   assert.ok(Object.values(r.days).every(s => s.length === 0));
+});
+
+// ---- преподаватели ----
+const lessonT = (roomId, b, e, teacherIds) => ({ ...lesson(roomId, b, e), teacherIds });
+const gtr = { classId: 21, roomIds: [6, 7], teacherIds: [501, 502] };
+const voc = { classId: 20, roomIds: [5], teacherIds: [503] };
+const pno = { classId: 22, roomIds: [8], teacherIds: [503] };
+
+test("преподаватель занят в другом кабинете → инструмент недоступен", () => {
+  const idx = a.busyIndex([lessonT(99, "15:00", "16:00", [503])]);
+  assert.equal(a.freePlace(idx, voc, D, t.toMin("15:00"), settings), null);
+  assert.equal(a.freePlace(idx, voc, D, t.toMin("14:30"), settings), null);
+  assert.deepEqual(a.freePlace(idx, voc, D, t.toMin("14:15"), settings), { roomId: 5, teacherId: 503 }); // 14:15–15:00 впритык
+  assert.deepEqual(a.freePlace(idx, voc, D, t.toMin("16:00"), settings), { roomId: 5, teacherId: 503 });
+});
+
+test("общий преподаватель вокала и фортепиано: занят — закрыты оба инструмента", () => {
+  const idx = a.busyIndex([lessonT(5, "12:00", "12:45", [503])]); // например, пробный вокал
+  const s = a.daySlots(idx, [voc, pno, gtr], D, settings, NOW).find(x => x.time === "12:00");
+  assert.deepEqual(s.classIds, [21]);
+});
+
+test("два преподавателя гитары: берётся первый свободный; заняты оба — гитары нет", () => {
+  let idx = a.busyIndex([lessonT(99, "14:00", "15:00", [501])]);
+  assert.deepEqual(a.freePlace(idx, gtr, D, t.toMin("14:00"), settings), { roomId: 6, teacherId: 502 });
+  idx = a.busyIndex([lessonT(99, "14:00", "15:00", [501]), lessonT(98, "13:30", "14:30", [502])]);
+  assert.equal(a.freePlace(idx, gtr, D, t.toMin("14:00"), settings), null);
+});
+
+test("группа без преподавателей — только кабинеты (teacherId null)", () => {
+  const idx = a.busyIndex([lessonT(99, "14:00", "15:00", [501])]);
+  assert.deepEqual(a.freePlace(idx, guitar, D, t.toMin("14:00"), settings), { roomId: 6, teacherId: null });
 });
