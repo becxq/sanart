@@ -57,10 +57,9 @@ module.exports = async (req, res) => {
   if (state === "error") return c.json(res, 502, { error: "crm" });
   if (state !== "ask") return c.json(res, 409, { error: state });
   try {
-    await c.mk("DELETE", `/lessonRecords/${recordId}`);
+    if (!(await c.cancelRecord(info))) return c.json(res, 409, { error: "gone" });
   } catch (e) {
-    if (e instanceof c.MkError && e.status === 404) return c.json(res, 409, { error: "gone" });
-    console.error(e.message); return c.json(res, 502, { error: "crm" });
+    console.error(e.message); return c.json(res, 502, c.errorInfo(e));
   }
   await Promise.all([
     info.phone ? c.safe(c.sendWhatsApp(info.phone, `${info.name}, ваша запись на пробный урок (${c.lessonText(info)}) отменена. Будем рады видеть вас в другой день!`)) : null,
